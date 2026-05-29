@@ -1,42 +1,31 @@
--- Krazor V-Powers: Final Physics Control
-local LP = game:GetService("Players").LocalPlayer
-local UIS = game:GetService("UserInputService")
-local RS = game:GetService("RunService")
-local Mouse = LP:GetMouse()
+-- Krazor V-Powers GUI: Full Control
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+local PlayerGui = LP:WaitForChild("PlayerGui")
 
--- Створення фізики польоту
-local root = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-local att = Instance.new("Attachment", root)
-local lv = Instance.new("LinearVelocity", root)
-lv.Attachment0 = att
-lv.MaxForce = 100000
-lv.VectorVelocity = Vector3.new(0, 0, 0)
+-- Створюємо GUI
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 200, 0, 150); Frame.Position = UDim2.new(0.1, 0, 0.1, 0)
+Frame.BackgroundColor3 = Color3.new(0, 0, 0); Frame.Active = true; Frame.Draggable = true
 
--- Політ (активація)
-local flying = false
-UIS.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.E then
-        flying = not flying
-    end
-end)
+local FlyBtn = Instance.new("TextButton", Frame)
+FlyBtn.Size = UDim2.new(1, 0, 0, 50); FlyBtn.Text = "FLY (E to Toggle)"
+FlyBtn.MouseButton1Click:Connect(function() flyEnabled = not flyEnabled end)
 
--- Основний цикл: політ + лазер-кіл
-RS.RenderStepped:Connect(function()
-    if not root then root = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") return end
-    
-    if flying then
-        local cam = workspace.CurrentCamera.CFrame.LookVector
-        lv.VectorVelocity = cam * 100 -- Швидкість
+local LaserBtn = Instance.new("TextButton", Frame); LaserBtn.Position = UDim2.new(0, 0, 0, 60)
+LaserBtn.Size = UDim2.new(1, 0, 0, 50); LaserBtn.Text = "LASER ON"
+
+-- Фізика
+local bodyVel = Instance.new("BodyVelocity")
+bodyVel.MaxForce = Vector3.new(1/0, 1/0, 1/0)
+flyEnabled = false
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if flyEnabled and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        bodyVel.Parent = LP.Character.HumanoidRootPart
+        bodyVel.Velocity = workspace.CurrentCamera.CFrame.LookVector * 100
     else
-        lv.VectorVelocity = Vector3.new(0, 0, 0)
-    end
-
-    -- Лазер-кіл (просто пробуємо атакувати)
-    if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-        local target = Mouse.Target
-        if target and target.Parent:FindFirstChild("Humanoid") then
-            -- Спробуймо змінити здоров'я напряму
-            target.Parent.Humanoid.Health = 0 
-        end
+        bodyVel.Parent = nil
     end
 end)
