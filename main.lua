@@ -1,78 +1,43 @@
--- Krazor V-Powers: Professional Edition
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-local Mouse = LP:GetMouse()
+-- Krazor V-Powers: KILL MODE
+local LP = game:GetService("Players").LocalPlayer
+local RS = game:GetService("RunService")
+local char = LP.Character or LP.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
 
--- GUI Setup
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 220, 0, 160); Frame.Position = UDim2.new(0.5, -110, 0.5, -80)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Frame.BorderSizePixel = 0
-local UICorner = Instance.new("UICorner", Frame); UICorner.CornerRadius = UDim.new(0, 8)
+-- 1. Створення лазерів (два парти)
+local function createPart()
+    local p = Instance.new("Part", workspace); p.Size = Vector3.new(0.5, 0.5, 50); p.Anchored = true; p.CanCollide = false
+    p.Color = Color3.new(1, 0, 0); p.Material = Enum.Material.Neon
+    return p
+end
+local laser1, laser2 = createPart(), createPart()
 
--- Dragging Logic
-local dragging, dragInput, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true; dragStart = input.Position; startPos = Frame.Position
+-- 2. Функція вбивства (Шукаємо RemoteEvent автоматично)
+local function killPlayer(target)
+    for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+        if v:IsA("RemoteEvent") and (v.Name:lower():find("damage") or v.Name:lower():find("hit")) then
+            v:FireServer(target) -- Спроба нанести урон
+        end
     end
-end)
-UIS.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
-
--- Buttons
-local function createBtn(name, pos)
-    local btn = Instance.new("TextButton", Frame)
-    btn.Size = UDim2.new(0, 200, 0, 40); btn.Position = pos; btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); btn.TextColor3 = Color3.new(1,1,1)
-    Instance.new("UICorner", btn)
-    return btn
 end
 
-local LaserBtn = createBtn("Laser Eyes: OFF", UDim2.new(0, 10, 0, 10))
-local FlyBtn = createBtn("Flight: OFF", UDim2.new(0, 10, 0, 60))
-
--- Logic
-local laserOn, flyOn = false, false
-local beam, att0, att1, bv
-
-LaserBtn.MouseButton1Click:Connect(function()
-    laserOn = not laserOn
-    LaserBtn.Text = laserOn and "Laser Eyes: ON" or "Laser Eyes: OFF"
-    if laserOn then
-        att0 = Instance.new("Attachment", LP.Character.Head)
-        att1 = Instance.new("Attachment", workspace.Terrain)
-        beam = Instance.new("Beam", workspace.Terrain)
-        beam.Attachment0 = att0; beam.Attachment1 = att1; beam.Color = ColorSequence.new(Color3.new(1,0,0))
-    else
-        if beam then beam:Destroy(); att0:Destroy(); att1:Destroy() end
-    end
-end)
-
-FlyBtn.MouseButton1Click:Connect(function()
-    flyOn = not flyOn
-    FlyBtn.Text = flyOn and "Flight: ON" or "Flight: OFF"
-    if flyOn then
-        bv = Instance.new("BodyVelocity", LP.Character.HumanoidRootPart)
-        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    else
-        if bv then bv:Destroy() end
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if laserOn and LP.Character and LP.Character:FindFirstChild("Head") then
-        att1.WorldPosition = Mouse.Hit.Position
-    end
-    if flyOn and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * 60
+-- 3. Основний цикл: Лазери + Кілл
+RS.RenderStepped:Connect(function()
+    if not char:FindFirstChild("Head") then return end
+    local headPos = char.Head.Position
+    
+    -- Наведення лазерів (два парти)
+    local targetPos = LP:GetMouse().Hit.Position
+    laser1.CFrame = CFrame.new(headPos + Vector3.new(0.5, 0, 0), targetPos) * CFrame.new(0, 0, -25)
+    laser2.CFrame = CFrame.new(headPos + Vector3.new(-0.5, 0, 0), targetPos) * CFrame.new(0, 0, -25)
+    
+    -- Перевірка на вбивство (дистанція до гравців)
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (plr.Character.HumanoidRootPart.Position - targetPos).Magnitude
+            if dist < 5 then -- Якщо приціл на гравцеві
+                killPlayer(plr.Character)
+            end
+        end
     end
 end)
